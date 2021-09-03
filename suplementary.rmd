@@ -11,7 +11,7 @@ output:
 knitr::opts_chunk$set(echo = TRUE,message = FALSE, warning = FALSE)
 ```
 
-This section corresponds to the supplementary material of the paper "Predictive comparison between random machines and random forests" authored by Maia, R. Azevedo and Ara and published in Journal of Data Science. The following sections describes how reproduce the paper results using the `rmachines` package. 
+This section corresponds to the first part of the supplementary material of the paper "Predictive comparison between random machines and random forests" authored by Maia, R. Azevedo and Ara and published in Journal of Data Science. The following sections describes how reproduce some paper results using the `rmachines` package.
 
 ## A.1. The `rmachines` package
 
