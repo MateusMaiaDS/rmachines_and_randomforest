@@ -1,5 +1,5 @@
 ---
-title: "Predictive comparison between random machines and random forests: Supplementary Material A"
+title: "Supplementary Material A"
 author: "Mateus Maia, Arthur R. Azevedo and Anderson Ara"
 output:
   html_document:
