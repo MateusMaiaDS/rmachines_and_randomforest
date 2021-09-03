@@ -1,0 +1,218 @@
+---
+title: "Predictive comparison between random machines and random forests: Supplementary Material"
+author: "Mateus Maia, Arthur R. Azevedo and Anderson Ara"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,message = FALSE, warning = FALSE)
+```
+
+This section corresponds to the supplementary material of the paper "Predictive comparison between random machines and random forests" authored by Maia, R. Azevedo and Ara and published in Journal of Data Science. The following sections describes how reproduce the paper results using the `rmachines` package. 
+
+## A.1. The `rmachines` package
+
+The package `rmachines` is an R package developed to apply the support vector ensemble based on random kernel space. The package is in continuous development to apply the support vector ensemble based on random kernel space. The complete documentation and the code files are available at [GitHub](https://github.com/MateusMaiaDS/rmachines). The package `kernlab` is used as a dependency to calculate the SVM models.
+
+To install the Random Machines actual version package from GitHub, consider the following command:
+
+```{r install_package, eval=F}
+# install.packages("devtools")
+devtools::install_github("MateusMaiaDS/rmachines")
+```
+
+To illustrate how the package works, we also will be using the function of the package to simulate the artificial data scenario presented in Section 5. The main function of the package is the `random_machines()`, and its argument is described below:
+
+- `train`: the training dataset used to generate the model and the bootstrap samples;
+- `validation`: the validation dataset to calculate the parameters $\lambda$;
+- `boots_size`: the number $B$ of bootstrap samples.
+- `cost`: cost parameter $C$ from Equation 4;
+- `automatic_tuning`: tune the argument of the Gaussian and Laplacian kernel functions using the `sigest()` function from `kernlab`.
+- `poly_scale`: corresponds to the $\gamma$ parameter from the Polynomial Kernel from Table 1;
+- `offset`: corresponds to the $\omega$ parameter from the Polynomial Kernel from Table 1;
+- `degree`: corresponds to the $d$ parameter from the Polynomial Kernel from Table 1;
+- `gamma_lap`: correspond to the $\gamma$ parameter from the Laplacian Kernel from Table 1;
+- `gamma_rbf`: correspond to he $\gamma$ parameter from the Gaussian Kernel from Table 1;
+- `seed.bootstrap`: correspond to seed to reproduce bootstrap samples.
+
+To reproduce the cross validation scenario used over the article we will be using the function `cross_validation()`, which has as arguments:
+
+- `data`: the data that will be divided.
+- `training_ratio`: the proportion of the number of observations in the training set.
+- `validation_ratio`: the proportion of instances that belong to the validation set
+- `seed`: the seed used for the cross-validation.
+
+The output of the `cross_validation()` return a list with the training, validation, and test data, named by `train_sample`, `validation_sample`, and, `test_sample`, respectively.
+
+The next sections provide the way to replicate the results in two major approaches. The first considers the artificial data and the second the real benchmark data.
+
+## A.2. Artificial Data results
+
+To illustrate we will reproduce the **Scenario 1** from Section 3 Artificial Data Application, for that we will use the function `class_sim_scenario_one()` with the arguments `n=100` corresponds to the number of observations, `p=2` corresponds to the dimension of the simulated scenario, the ratio being equal to `ratio = 0.5`, and a `seed=42` to the reproducible results. 
+
+Describing the application of the Simulation
+
+```{r rmachines_model,message=FALSE,warning=FALSE}
+# Importing the package
+library(rmachines)
+
+# Generating the simulated data
+simulated_data <- rmachines::class_sim_scenarion_one(n = 100,
+                                                     p = 2,
+                                                     ratio = 0.5,
+                                                     seed = 42)
+
+# Creating the cross validation 
+cross_validation_object <- rmachines::cross_validation(data=simulated_data,
+                                                       training_ratio = 0.7,
+                                                       validation_ratio = 0.2,
+                                                       seed = 42)
+
+# Creating the training, validation and set
+training_sample <- cross_validation_object$train_sample
+validation_sample <- cross_validation_object$validation_sample
+test_sample <- cross_validation_object$test
+
+# To generate the model we would have
+random_machines_model <- rmachines::random_machines(formula = y ~ .,
+                                                    train = training_sample,
+                                                    validation = validation_sample,
+                                                    boots_size = 25, 
+                                                    cost = 1,
+                                                    gamma_rbf = 1,
+                                                    gamma_lap = 1,
+                                                    automatic_tuning = TRUE,
+                                                    poly_scale = 1,
+                                                    offset = 0,
+                                                    degree = 2)
+```
+
+
+To predict the model, we will be using the function `predict_rm_model()` which have the followings arguments:
+
+- `mod`: the `rm_model` class object
+- `newdata`: the test sample obtain from the cross validation object.
+
+
+```{r}
+# Prediction from the test data.
+predicted <- rmachines::predict_rm_model(mod = random_machines_model,
+                                         newdata = test_sample)
+
+# To compare the accuracy we could use the acc function
+RM_ACC <- rmachines::acc(observed = test_sample$y,
+                         predicted = predicted)
+RM_ACC
+
+# To compare the  Matthew's corr. coef. using the mcc function
+RM_MCC <- rmachines::mcc(observed = test_sample$y,
+                         predicted = predicted)
+RM_MCC
+```
+
+We can see here that there is a strong prediction from this model. 
+Now we will apply the same process to the Random Forest model with the `randomForest` package.
+
+```{r}
+# Load the package
+library(randomForest)
+
+# Generate the model
+rand_for_model <- randomForest(
+      
+      formula = y ~ .,
+      data = training_sample,
+      ntree = 25
+      
+)
+# Prediction for test data
+rand_for_predict <- predict(rand_for_model, test_sample)
+
+# Now we check how many classifications the RF model got rigth
+rf_acc <- rmachines::acc(observed = test_sample$y,
+                         predicted = rand_for_predict)
+rf_acc
+
+# Also check how the MCC metric
+rf_mcc <- rmachines::mcc(observed = test_sample$y,
+                         predicted = rand_for_predict)
+rf_mcc
+```
+
+As shown in Table 2, we obtain the same result for both the Random Machines and Random Forest models. It is important to point out that this supplementary information is performed only one time. Meaning that we run the model only one time, where on the paper we have several runs to better estimate the model performance.
+
+## A.3. Real benchmark data results
+
+To illustrate Section 5, where the algorithm performance was evaluated over real data sets, `rmachines` imported the data from the Brazilian government's social program for direct income distribution.
+
+The result can be shown below
+
+```{r}
+# Importing the data
+data("bolsafam") 
+
+# Cross validation whosale
+bolsa_cross_validation <- rmachines::cross_validation(data = bolsafam,
+                                                        training_ratio = 0.7,
+                                                        validation_ratio = 0.2,
+                                                        seed = 42)
+
+# Getting the training, validation and sample
+bolsa_train <- bolsa_cross_validation$train_sample
+bolsa_validation <- bolsa_cross_validation$validation_sample
+bolsa_test <- bolsa_cross_validation$test_sample
+
+# To generate the model, we would have
+rm_bolsa <- rmachines::regression_random_machines(formula = y ~ .,
+                                         train = bolsa_train,
+                                         test = bolsa_test,
+                                         validation = bolsa_validation,
+                                         loss_function = RMSE,
+                                         seed.bootstrap = 42,
+                                         boots_size = 25,#100, 
+                                         cost = 1,
+                                         gamma_rbf = 5,
+                                         gamma_lap = .5,
+                                         automatic_tuning = TRUE,
+                                         poly_scale = 1,
+                                         degree = 2)
+
+# Prediction from the test data.
+predicted_bolsa <- rmachines::predict_rrm_model(rm_bolsa)
+
+# To compare the rmse, we could use the rmse function
+bolsa_RMSE <- RMSE_function(predicted = predicted_bolsa,
+                            observed = bolsa_test$y)
+
+# Print RMSE
+bolsa_RMSE
+```
+
+Now we will apply the same process to the Random Forest model with the `randomForest` package.
+
+```{r}
+# Random forest regression model
+rf_bolsa <- randomForest(
+      
+      formula = y ~ .,
+      data = bolsa_train,
+      ntree = 1000,
+      nodesize = 25,
+      mtry = 6
+      
+)
+
+# Predict the target variable
+rand_for_predict <- predict(rf_bolsa, bolsa_test)
+
+# Calculate the RMSE
+RF_rmse <- RMSE_function(rand_for_predict,bolsa_train$y)
+
+# Print RMSE
+RF_rmse
+```
+
+As one can see the RMSE of the RM model `r round(bolsa_RMSE, 5)` was significantly smaller than the RMSE of the RF model `r round(RF_rmse, 5)`.
